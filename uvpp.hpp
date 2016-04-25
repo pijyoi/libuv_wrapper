@@ -67,15 +67,18 @@ namespace uvpp
   protected:
     BaseHandle() {
       m_handle = new T();
+      m_handle->type = UV_UNKNOWN_HANDLE;
       m_handle->data = this;
     }
 
     ~BaseHandle()
     {
       m_handle->data = nullptr;
-      uv_close(as_handle(), [](uv_handle_t *handle){
-        delete reinterpret_cast<T*>(handle);
-      });
+      if (m_handle->type != UV_UNKNOWN_HANDLE) {
+          uv_close(as_handle(), [](uv_handle_t *handle){
+            delete reinterpret_cast<T*>(handle);
+          });
+      }
     }
 
   public:
