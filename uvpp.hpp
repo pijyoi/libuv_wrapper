@@ -13,6 +13,7 @@
 namespace uvpp
 {
   typedef std::function<void()> BasicCallback;
+  typedef std::function<void(int, int)> StatusEventsCallback;
 
   int print_error(int err) {
     std::cerr << uv_err_name(err) << " : " << uv_strerror(err) << std::endl;
@@ -139,5 +140,50 @@ namespace uvpp
     BasicCallback m_callback;
   };
 
+#define DEFINE_WATCHER(Klass, klass) \
+  class Klass : public BaseHandle<uv_##klass##_t> {                 \
+  public:                                                           \
+    Klass(Loop& uvloop) { uv_##klass##_init(uvloop, m_handle); }    \
+    void set_callback(BasicCallback cb) { m_callback = cb; }        \
+    void start() {                                                  \
+      uv_##klass##_start(m_handle, [](uv_##klass##_t *handle){      \
+        static_cast<Klass*>(handle->data)->m_callback();            \
+      });                                                           \
+    }                                                               \
+    void stop() { uv_##klass##_stop(m_handle); }                    \
+  private:                                                          \
+    BasicCallback m_callback;                                       \
+  };
+
+  DEFINE_WATCHER(Prepare, prepare)
+  DEFINE_WATCHER(Check, check)
+  DEFINE_WATCHER(Idle, idle)
+
+#undef DEFINE_WATCHER
+
+  class Poll : public BaseHandle<uv_poll_t>
+  {
+  public:
+    Poll(Loop& uvloop, uv_os_sock_t socket) {
+      uv_poll_init_socket(uvloop, m_handle, socket);
+    }
+
+    void set_callback(StatusEventsCallback cb) {
+      m_callback = cb;
+    }
+
+    void start(int events) {
+      uv_poll_start(m_handle, events, [](uv_poll_t *handle, int status, int events){
+        static_cast<Poll*>(handle->data)->m_callback(status, events);
+      });
+    }
+
+    void stop() { uv_poll_stop(m_handle); }
+
+  private:
+    StatusEventsCallback m_callback;
+  };
+
 } // namespace uvpp
 #endif
+
