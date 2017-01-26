@@ -2,7 +2,6 @@
 #define UVPP_ZSOCK_HPP
 
 #include "uvpp.hpp"
-#include "uv_zsock.h"
 
 namespace uvpp
 {
