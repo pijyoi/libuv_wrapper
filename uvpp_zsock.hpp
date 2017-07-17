@@ -6,7 +6,7 @@
 
 namespace uvpp
 {
-    uv_os_sock_t get_zsock_fd(void *zsock)
+    inline uv_os_sock_t get_zsock_fd(void *zsock)
     {
         uv_os_sock_t sockfd;
         size_t optlen = sizeof(sockfd);
@@ -15,7 +15,7 @@ namespace uvpp
         return sockfd;
     }
 
-    int get_revents(void *zsock, int events)
+    inline int get_revents(void *zsock, int events)
     {
         int revents = 0;
 

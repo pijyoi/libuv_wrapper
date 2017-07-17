@@ -15,7 +15,7 @@ namespace uvpp
   typedef std::function<void()> BasicCallback;
   typedef std::function<void(int, int)> StatusEventsCallback;
 
-  int print_error(int err) {
+  inline int print_error(int err) {
     std::cerr << uv_err_name(err) << " : " << uv_strerror(err) << std::endl;
     return 0;
   }
