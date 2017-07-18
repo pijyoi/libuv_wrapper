@@ -26,12 +26,8 @@ namespace uvpp
             }
         }
 
-        int bind(const std::string& ipaddrport, unsigned int flags) {
-            struct sockaddr_in saddr = { AF_INET };
-            auto colon = ipaddrport.find(':');
-            auto ipaddr = ipaddrport.substr(0, colon);
-            auto portstr = ipaddrport.substr(colon+1);
-            saddr.sin_port = htons(stoi(portstr));
+        int bind(const std::string& ipaddr, int port, unsigned int flags) {
+            struct sockaddr_in saddr = { AF_INET, htons(port) };
             inet_aton(ipaddr.c_str(), &saddr.sin_addr);
             int rc = uv_udp_bind(m_handle, (struct sockaddr*)&saddr, flags);
             assert(rc==0 || print_error(rc));
@@ -60,8 +56,7 @@ namespace uvpp
                 [](uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf,
                     const struct sockaddr *addr, unsigned flags){
                     auto self = static_cast<UdpReceiver*>(handle->data);
-                    self->recv_callback(nread, buf, (const struct sockaddr_in *)addr,
-                        flags);
+                    self->recv_callback(nread, buf, addr, flags);
                 });
             assert(rc==0 || print_error(rc));
         }
@@ -86,7 +81,7 @@ namespace uvpp
         }
 
         void recv_callback(ssize_t nread, const uv_buf_t *buf,
-            const struct sockaddr_in *addr, unsigned flags) {
+            const struct sockaddr *addr, unsigned flags) {
             if (nread==0 && addr==NULL) {
                 // EAGAIN: don't pass this to user
             }
