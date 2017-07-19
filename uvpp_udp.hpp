@@ -8,7 +8,7 @@
 
 namespace uvpp
 {
-    typedef std::function<void(char *, int)> DataReadCallback;
+    typedef std::function<void(char *, int, const struct sockaddr*)> DataReadCallback;
 
     class UdpReceiver : public BaseHandle<uv_udp_t>
     {
@@ -84,10 +84,10 @@ namespace uvpp
                 // EAGAIN: don't pass this to user
             }
             else if (nread < 0) {
-                m_callback(buf->base, nread);
+                m_callback(buf->base, nread, addr);
             }
             else {
-                m_callback(buf->base, nread);
+                m_callback(buf->base, nread, addr);
             }
 
             if (buf->base)
