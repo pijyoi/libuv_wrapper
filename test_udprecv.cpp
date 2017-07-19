@@ -40,8 +40,10 @@ int main()
     for (int idx=0; idx < 20; idx++) {
         buf[0] = idx;
         int rc = ucast.try_send((char*)buf, sizeof(buf), saddr);
-        if (rc==-1)
+        if (rc < 0) {
+            printf("%s at idx %d\n", uv_err_name(rc), idx);
             break;
+        }
     }
 
     uvloop.run();
