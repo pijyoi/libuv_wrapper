@@ -10,15 +10,15 @@ namespace uvpp
 {
     typedef std::function<void(char *, int, const struct sockaddr*)> DataReadCallback;
 
-    class UdpReceiver : public BaseHandle<uv_udp_t>
+    class Udp : public BaseHandle<uv_udp_t>
     {
     public:
-        UdpReceiver(Loop& uvloop)
+        Udp(Loop& uvloop)
         {
             uv_udp_init_ex(uvloop, m_handle, AF_INET);
         }
 
-        ~UdpReceiver() {
+        ~Udp() {
             while (!m_mempool.empty()) {
                 auto ptr = m_mempool.top();
                 m_mempool.pop();
@@ -26,10 +26,15 @@ namespace uvpp
             }
         }
 
-        int bind(const struct sockaddr_in& saddr, unsigned int flags) {
+        int bind(const struct sockaddr_in& saddr, unsigned int flags=0) {
             int rc = uv_udp_bind(m_handle, (struct sockaddr*)&saddr, flags);
             assert(rc==0 || print_error(rc));
             return rc;
+        }
+
+        int getsockname(struct sockaddr_in& saddr) {
+            int namelen = sizeof(saddr);
+            return uv_udp_getsockname(m_handle, (struct sockaddr*)&saddr, &namelen);
         }
 
         int join(const std::string& mcast_addr, const std::string& iface_addr) {
@@ -48,12 +53,12 @@ namespace uvpp
         {
             int rc = uv_udp_recv_start(m_handle,
                 [](uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf){
-                    auto self = static_cast<UdpReceiver*>(handle->data);
+                    auto self = static_cast<Udp*>(handle->data);
                     self->alloc_callback(suggested_size, buf);
                 },
                 [](uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf,
                     const struct sockaddr *addr, unsigned flags){
-                    auto self = static_cast<UdpReceiver*>(handle->data);
+                    auto self = static_cast<Udp*>(handle->data);
                     self->recv_callback(nread, buf, addr, flags);
                 });
             assert(rc==0 || print_error(rc));
@@ -63,6 +68,12 @@ namespace uvpp
         {
             int rc = uv_udp_recv_stop(m_handle);
             assert(rc==0 || print_error(rc));
+        }
+
+        int try_send(const char *buf, int len, const struct sockaddr_in& saddr) {
+            uv_buf_t uvbuf = uv_buf_init(const_cast<char*>(buf), len);
+            return uv_udp_try_send(m_handle, &uvbuf, 1,
+                (const struct sockaddr *)&saddr);
         }
 
     private:
