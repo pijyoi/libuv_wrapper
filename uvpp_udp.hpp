@@ -26,9 +26,7 @@ namespace uvpp
             }
         }
 
-        int bind(const std::string& ipaddr, int port, unsigned int flags) {
-            struct sockaddr_in saddr = { AF_INET, htons(port) };
-            inet_aton(ipaddr.c_str(), &saddr.sin_addr);
+        int bind(const struct sockaddr_in& saddr, unsigned int flags) {
             int rc = uv_udp_bind(m_handle, (struct sockaddr*)&saddr, flags);
             assert(rc==0 || print_error(rc));
             return rc;
