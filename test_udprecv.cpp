@@ -30,6 +30,8 @@ int main()
     uvpp::Udp ucast(uvloop);
     uv_ip4_addr("127.0.0.1", 0, &saddr);
     ucast.bind(saddr);
+    int rcvbufsize = ucast.recv_buffer_size(1048576);
+    printf("recv_buffer_size: %d\n", rcvbufsize);
     ucast.getsockname(saddr);
     ucast.set_callback([](char *buf, int len, const struct sockaddr *addr){
         int idx = ((int *)buf)[0];

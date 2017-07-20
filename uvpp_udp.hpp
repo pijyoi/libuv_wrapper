@@ -4,6 +4,8 @@
 #include <string>
 #include <stack>
 
+#include <string.h>
+
 #include "uvpp.hpp"
 
 namespace uvpp
@@ -44,6 +46,18 @@ namespace uvpp
             return rc;
         }
 
+        int get_recv_buffer_size() {
+            int value = 0;
+            uv_recv_buffer_size((uv_handle_t*)m_handle, &value);
+            return value;
+        }
+
+        int recv_buffer_size(int size=0) {
+            int value = size;
+            uv_recv_buffer_size((uv_handle_t*)m_handle, &value);
+            return size==0 ? value : recv_buffer_size(0);
+        }
+
         void set_callback(DataReadCallback cb)
         {
             m_callback = cb;
@@ -76,15 +90,38 @@ namespace uvpp
                 (const struct sockaddr *)&saddr);
         }
 
+        int send(const char *buf, int len, const struct sockaddr_in& saddr) {
+            // our mempool only returns 64KB buffers
+            if (sizeof(uv_udp_send_t) + len > 65536)
+                return UV_EMSGSIZE;
+
+            // get buf from mempool
+            uv_buf_t uvbuf;
+            alloc_callback(65536, &uvbuf);
+
+            uv_udp_send_t *req = (uv_udp_send_t*)uvbuf.base;
+            char *data = (char *)(req + 1);
+            memcpy(data, buf, len);
+            uvbuf = uv_buf_init(data, len);
+
+            int rc = uv_udp_send(req, m_handle, &uvbuf, 1,
+                (const struct sockaddr *)&saddr, [](uv_udp_send_t *req, int status) {
+                auto self = static_cast<Udp*>(req->handle->data);
+                self->m_mempool.push(req);
+            });
+            return rc;
+        }
+
     private:
         void alloc_callback(size_t suggested_size, uv_buf_t *buf) {
+            size_t nbytes = 65536;
             if (m_mempool.empty()) {
-                buf->base = (char *)malloc(suggested_size);
-                buf->len = suggested_size;
+                buf->base = (char *)malloc(nbytes);
+                buf->len = nbytes;
             }
             else {
                 buf->base = (char *)m_mempool.top();
-                buf->len = suggested_size;
+                buf->len = nbytes;
                 m_mempool.pop();
             }
         }
