@@ -46,16 +46,16 @@ namespace uvpp
             return rc;
         }
 
-        int get_recv_buffer_size() {
-            int value = 0;
-            uv_recv_buffer_size((uv_handle_t*)m_handle, &value);
-            return value;
-        }
-
         int recv_buffer_size(int size=0) {
             int value = size;
             uv_recv_buffer_size((uv_handle_t*)m_handle, &value);
-            return size==0 ? value : recv_buffer_size(0);
+            return size==0 ? value : recv_buffer_size();
+        }
+
+        int send_buffer_size(int size=0) {
+            int value = size;
+            uv_send_buffer_size((uv_handle_t*)m_handle, &value);
+            return size==0 ? value : send_buffer_size();
         }
 
         void set_callback(DataReadCallback cb)

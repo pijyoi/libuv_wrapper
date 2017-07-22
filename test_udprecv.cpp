@@ -1,5 +1,3 @@
-#include <memory>
-
 #include <stdio.h>
 
 #include "uvpp_udp.hpp"
@@ -28,26 +26,19 @@ int main()
     mcast.start();
 
     uvpp::Udp ucast(uvloop);
-    uv_ip4_addr("127.0.0.1", 0, &saddr);
+    uv_ip4_addr("0.0.0.0", 0, &saddr);
     ucast.bind(saddr);
+    ucast.getsockname(saddr);
+    printf("listening on %d\n", ntohs(saddr.sin_port));
     int rcvbufsize = ucast.recv_buffer_size(1048576);
     printf("recv_buffer_size: %d\n", rcvbufsize);
-    ucast.getsockname(saddr);
     ucast.set_callback([](char *buf, int len, const struct sockaddr *addr){
-        int idx = ((int *)buf)[0];
-        printf("%d %d\n", idx, len);
+        uint64_t *payload = (uint64_t *)buf;
+        char namebuf[32];
+        uv_ip4_name((const struct sockaddr_in*)addr, namebuf, sizeof(namebuf));
+        printf("got packet %lu %d %lu from %s\n", payload[0], len, payload[1], namebuf);
     });
     ucast.start();
-    int buf[4096];
-    for (int idx=0; idx < 20; idx++) {
-        buf[0] = idx;
-        int rc = ucast.try_send((char*)buf, sizeof(buf), saddr);
-        if (rc < 0) {
-            printf("%s at idx %d\n", uv_err_name(rc), idx);
-            break;
-        }
-    }
 
     uvloop.run();
-    printf("first loop break\n");
 }
