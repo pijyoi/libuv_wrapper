@@ -1,3 +1,4 @@
+#include <cinttypes>
 #include <stdio.h>
 
 #include "uvpp_udp.hpp"
@@ -36,7 +37,7 @@ int main()
         uint64_t *payload = (uint64_t *)buf;
         char namebuf[32];
         uv_ip4_name((const struct sockaddr_in*)addr, namebuf, sizeof(namebuf));
-        printf("got packet %lu %d %lu from %s\n", payload[0], len, payload[1], namebuf);
+        printf("got packet %" PRIu64 " %d %" PRIu64 " from %s\n", payload[0], len, payload[1], namebuf);
     });
     ucast.start();
 
