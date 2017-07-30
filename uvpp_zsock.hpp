@@ -5,15 +5,6 @@
 
 namespace uvpp
 {
-    inline uv_os_sock_t get_zsock_fd(void *zsock)
-    {
-        uv_os_sock_t sockfd;
-        size_t optlen = sizeof(sockfd);
-	    int rc = zmq_getsockopt(zsock, ZMQ_FD, &sockfd, &optlen);
-	    assert(rc==0);
-        return sockfd;
-    }
-
     inline int get_revents(void *zsock, int events)
     {
         int revents = 0;
@@ -38,10 +29,10 @@ namespace uvpp
     class ZsockWatcher
     {
     public:
-        ZsockWatcher(Loop& uvloop, void *zsock)
-          : m_zsock(zsock), m_events(0),
+        ZsockWatcher(Loop& uvloop)
+          : m_zsock(nullptr), m_events(0),
             m_prepare(uvloop), m_check(uvloop), m_idle(uvloop),
-            m_poll(uvloop, get_zsock_fd(zsock))
+            m_poll(uvloop)
         {
             m_prepare.set_callback([this](){
                 int revents = get_revents(m_zsock, m_events);
@@ -63,6 +54,26 @@ namespace uvpp
             m_poll.set_callback([](int status, int events){});
         }
 
+        ZsockWatcher(Loop& uvloop, void *zsock)
+          : ZsockWatcher(uvloop)
+        {
+            init(zsock);
+        }
+
+        void init(void *zsock)
+        {
+            assert(m_zsock==nullptr);
+
+            m_zsock = zsock;
+
+            uv_os_sock_t sockfd;
+            size_t optlen = sizeof(sockfd);
+            int rc = zmq_getsockopt(zsock, ZMQ_FD, &sockfd, &optlen);
+            assert(rc==0);
+
+            m_poll.init(sockfd);
+        }
+
         void set_callback(BasicCallback cb)
         {
             m_callback = cb;
@@ -70,6 +81,8 @@ namespace uvpp
 
         void start(int events = UV_READABLE)
         {
+            assert(m_zsock != nullptr);
+
             m_events = events;
             m_prepare.start();
             m_check.start();

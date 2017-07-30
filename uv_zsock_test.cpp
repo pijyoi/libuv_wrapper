@@ -22,7 +22,8 @@ int main()
     int rc = zmq_bind(zsock_recv, "inproc://channel");
     assert(rc!=-1);
 
-    uvpp::ZsockWatcher uzsock(uvloop, zsock_recv);
+    uvpp::ZsockWatcher uzsock(uvloop);
+    uzsock.init(zsock_recv);
     uzsock.set_callback([zsock_recv](){
         uint64_t ts_recv = uv_hrtime();
         uint64_t ts_send;

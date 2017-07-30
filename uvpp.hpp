@@ -164,8 +164,16 @@ namespace uvpp
   class Poll : public BaseHandle<uv_poll_t>
   {
   public:
-    Poll(Loop& uvloop, uv_os_sock_t socket) {
-      uv_poll_init_socket(uvloop, m_handle, socket);
+    Poll(Loop& uvloop) : m_uvloop(uvloop) {
+    }
+
+    Poll(Loop& uvloop, uv_os_sock_t sock) : Poll(uvloop) {
+      init(sock);
+    }
+
+    void init(uv_os_sock_t sock) {
+      assert(m_handle->type==UV_UNKNOWN_HANDLE);
+      uv_poll_init_socket(m_uvloop, m_handle, sock);
     }
 
     void set_callback(StatusEventsCallback cb) {
@@ -173,6 +181,7 @@ namespace uvpp
     }
 
     void start(int events) {
+      assert(m_handle->type==UV_POLL);
       uv_poll_start(m_handle, events, [](uv_poll_t *handle, int status, int events){
         static_cast<Poll*>(handle->data)->m_callback(status, events);
       });
@@ -181,6 +190,7 @@ namespace uvpp
     void stop() { uv_poll_stop(m_handle); }
 
   private:
+    uv_loop_t *m_uvloop;
     StatusEventsCallback m_callback;
   };
 
