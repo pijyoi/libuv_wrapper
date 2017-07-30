@@ -5,27 +5,6 @@
 
 namespace uvpp
 {
-    inline int get_revents(void *zsock, int events)
-    {
-        int revents = 0;
-
-        int zmq_events;
-        size_t optlen = sizeof(zmq_events);
-        int rc = zmq_getsockopt(zsock, ZMQ_EVENTS, &zmq_events, &optlen);
-
-        if (rc==-1) {
-            // on error, make callback get called
-            return events;
-        }
-
-        if (zmq_events & ZMQ_POLLOUT)
-            revents |= events & UV_WRITABLE;
-        if (zmq_events & ZMQ_POLLIN)
-            revents |= events & UV_READABLE;
-
-        return revents;
-    }
-
     class ZsockWatcher
     {
     public:
@@ -95,6 +74,28 @@ namespace uvpp
             m_check.stop();
             m_idle.stop();
             m_poll.stop();
+        }
+
+    private:
+        int get_revents(void *zsock, int events)
+        {
+            int revents = 0;
+
+            int zmq_events;
+            size_t optlen = sizeof(zmq_events);
+            int rc = zmq_getsockopt(zsock, ZMQ_EVENTS, &zmq_events, &optlen);
+
+            if (rc==-1) {
+                // on error, make callback get called
+                return events;
+            }
+
+            if (zmq_events & ZMQ_POLLOUT)
+                revents |= events & UV_WRITABLE;
+            if (zmq_events & ZMQ_POLLIN)
+                revents |= events & UV_READABLE;
+
+            return revents;
         }
 
     private:
