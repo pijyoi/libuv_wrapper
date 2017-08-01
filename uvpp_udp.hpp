@@ -10,7 +10,7 @@
 
 namespace uvpp
 {
-    typedef std::function<void(char *, int, const struct sockaddr*)> DataReadCallback;
+    typedef std::function<void(char *, int, const struct sockaddr*)> DataRecvCallback;
 
     class Udp : public BaseHandle<uv_udp_t>
     {
@@ -58,7 +58,7 @@ namespace uvpp
             return size==0 ? value : send_buffer_size();
         }
 
-        void set_callback(DataReadCallback cb)
+        void set_callback(DataRecvCallback cb)
         {
             m_callback = cb;
         }
@@ -143,7 +143,7 @@ namespace uvpp
         }
 
     private:
-        DataReadCallback m_callback;
+        DataRecvCallback m_callback;
         std::stack<void*> m_mempool;
     };
 }
