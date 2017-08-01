@@ -39,11 +39,22 @@ namespace uvpp
             return uv_udp_getsockname(m_handle, (struct sockaddr*)&saddr, &namelen);
         }
 
-        int join(const std::string& mcast_addr, const std::string& iface_addr) {
-            int rc =  uv_udp_set_membership(m_handle, mcast_addr.c_str(),
-                iface_addr.c_str(), UV_JOIN_GROUP);
+        int set_membership(const std::string& mcast_addr, const std::string& iface_addr,
+                uv_membership membership) {
+            int rc = uv_udp_set_membership(m_handle, mcast_addr.c_str(),
+                iface_addr.c_str(), membership);
             assert(rc==0 || print_error(rc));
             return rc;
+        }
+
+        int set_multicast_interface(const std::string& iface_addr) {
+            int rc = uv_udp_set_multicast_interface(m_handle, iface_addr.c_str());
+            assert(rc==0 || print_error(rc));
+            return rc;
+        }
+
+        int join(const std::string& mcast_addr, const std::string& iface_addr) {
+            return set_membership(mcast_addr, iface_addr, UV_JOIN_GROUP);
         }
 
         int recv_buffer_size(int size=0) {
