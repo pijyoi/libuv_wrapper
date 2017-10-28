@@ -1,4 +1,7 @@
-#include <cinttypes>
+#include <vector>
+#include <iostream>
+#include <iterator>
+#include <algorithm>
 #include <stdio.h>
 
 #include "uvpp_udp.hpp"
@@ -16,30 +19,29 @@ int main()
     struct sockaddr_in saddr;
 
     uvpp::Udp mcast(uvloop);
-    uv_ip4_addr("0.0.0.0", 5353, &saddr);
+    uv_ip4_addr("0.0.0.0", 12345, &saddr);
     mcast.bind(saddr, UV_UDP_REUSEADDR);
-    mcast.join("224.0.0.251", "0.0.0.0");
-    mcast.set_callback([](char *buf, int len, const struct sockaddr *addr){
-        char namebuf[32];
-        uv_ip4_name((const struct sockaddr_in*)addr, namebuf, sizeof(namebuf));
-        printf("got %p %d from %s\n", buf, len, namebuf);
+    mcast.getsockname(saddr);
+    mcast.join("239.255.255.1", "0.0.0.0");
+    // printf("listening on %d\n", ntohs(saddr.sin_port));
+    int rcvbufsize = mcast.recv_buffer_size(1048576);
+    printf("recv_buffer_size: %d\n", rcvbufsize);
+    int sndcnt = 0;
+    std::vector<int> blkcnt;
+    mcast.set_callback([&](char *buf, int len, const struct sockaddr *addr){
+        uint32_t *payload = (uint32_t *)buf;
+        if (sndcnt!=payload[0]) {
+            std::cout << sndcnt << " : [ ";
+            std::ostream_iterator<int> out_it(std::cout, " ");
+            std::copy(blkcnt.begin(), blkcnt.end(), out_it);
+            std::cout << "]" << std::endl;
+            sndcnt = payload[0];
+            blkcnt.clear();
+        }
+        blkcnt.push_back(payload[1]);
     });
     mcast.start();
 
-    uvpp::Udp ucast(uvloop);
-    uv_ip4_addr("0.0.0.0", 0, &saddr);
-    ucast.bind(saddr);
-    ucast.getsockname(saddr);
-    printf("listening on %d\n", ntohs(saddr.sin_port));
-    int rcvbufsize = ucast.recv_buffer_size(1048576);
-    printf("recv_buffer_size: %d\n", rcvbufsize);
-    ucast.set_callback([](char *buf, int len, const struct sockaddr *addr){
-        uint64_t *payload = (uint64_t *)buf;
-        char namebuf[32];
-        uv_ip4_name((const struct sockaddr_in*)addr, namebuf, sizeof(namebuf));
-        printf("got packet %" PRIu64 " %d %" PRIu64 " from %s\n", payload[0], len, payload[1], namebuf);
-    });
-    ucast.start();
-
     uvloop.run();
+    printf("loop exit\n");
 }
