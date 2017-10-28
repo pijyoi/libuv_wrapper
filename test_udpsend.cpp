@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
     printf("send_buffer_size: %d\n", sndbufsize);
 
     auto period = std::chrono::milliseconds{125};
-    using clk = std::chrono::system_clock;
+    using clk = std::chrono::steady_clock;
     auto start_time = clk::now();
 
     uint32_t intcnt = 0;
