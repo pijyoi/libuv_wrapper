@@ -21,6 +21,10 @@ namespace uvpp
         }
 
         ~Udp() {
+            if (is_active()) {
+                fprintf(stderr, "uvpp::Udp <%p> : still active\n", this);
+            }
+
             while (!m_mempool.empty()) {
                 auto ptr = m_mempool.top();
                 m_mempool.pop();

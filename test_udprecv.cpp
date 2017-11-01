@@ -26,7 +26,7 @@ int main()
     // printf("listening on %d\n", ntohs(saddr.sin_port));
     int rcvbufsize = mcast.recv_buffer_size(1048576);
     printf("recv_buffer_size: %d\n", rcvbufsize);
-    int sndcnt = 0;
+    uint32_t sndcnt = 0;
     std::vector<int> blkcnt;
     mcast.set_callback([&](char *buf, int len, const struct sockaddr *addr){
         uint32_t *payload = (uint32_t *)buf;
@@ -44,4 +44,11 @@ int main()
 
     uvloop.run();
     printf("loop exit\n");
+
+    mcast.stop();
+    while (mcast.is_active()) {
+        fprintf(stderr, ".");
+        uvloop.run(UV_RUN_ONCE);
+    }
 }
+
