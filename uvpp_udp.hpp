@@ -14,9 +14,57 @@ namespace uvpp
 
     class Udp : public BaseHandle<uv_udp_t>
     {
+        struct Impl
+        {
+            uv_udp_t handle;
+            DataRecvCallback callback;
+            std::stack<void*> mempool;
+
+            ~Impl()
+            {
+                while (!mempool.empty()) {
+                    auto ptr = mempool.top();
+                    mempool.pop();
+                    free(ptr);
+                }
+            }
+
+            void alloc_callback(size_t suggested_size, uv_buf_t *buf) {
+                size_t nbytes = 65536;
+                if (mempool.empty()) {
+                    buf->base = (char *)malloc(nbytes);
+                    buf->len = nbytes;
+                }
+                else {
+                    buf->base = (char *)mempool.top();
+                    buf->len = nbytes;
+                    mempool.pop();
+                }
+            }
+
+            void recv_callback(ssize_t nread, const uv_buf_t *buf,
+                const struct sockaddr *addr, unsigned flags) {
+                if (nread==0 && addr==NULL) {
+                    // EAGAIN: don't pass this to user
+                }
+                else if (nread < 0) {
+                    callback(buf->base, nread, addr);
+                }
+                else {
+                    callback(buf->base, nread, addr);
+                }
+
+                if (buf->base)
+                    mempool.push(buf->base);
+            }
+        };
+        
     public:
         Udp(Loop& uvloop)
         {
+            auto pimpl = new Impl();
+            m_handle = &pimpl->handle;
+            m_handle->data = pimpl;
             uv_udp_init_ex(uvloop, m_handle, AF_INET);
         }
 
@@ -25,11 +73,9 @@ namespace uvpp
                 fprintf(stderr, "uvpp::Udp <%p> : still active\n", this);
             }
 
-            while (!m_mempool.empty()) {
-                auto ptr = m_mempool.top();
-                m_mempool.pop();
-                free(ptr);
-            }
+            uv_close(as_handle(), [](uv_handle_t *handle){
+                delete static_cast<Impl*>(handle->data);
+            });
         }
 
         int bind(const struct sockaddr_in& saddr, unsigned int flags=0) {
@@ -75,20 +121,21 @@ namespace uvpp
 
         void set_callback(DataRecvCallback cb)
         {
-            m_callback = cb;
+            auto pimpl = static_cast<Impl*>(m_handle->data);
+            pimpl->callback = cb;
         }
 
         void start()
         {
             int rc = uv_udp_recv_start(m_handle,
                 [](uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf){
-                    auto self = static_cast<Udp*>(handle->data);
-                    self->alloc_callback(suggested_size, buf);
+                    auto pimpl = static_cast<Impl*>(handle->data);
+                    pimpl->alloc_callback(suggested_size, buf);
                 },
                 [](uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf,
                     const struct sockaddr *addr, unsigned flags){
-                    auto self = static_cast<Udp*>(handle->data);
-                    self->recv_callback(nread, buf, addr, flags);
+                    auto pimpl = static_cast<Impl*>(handle->data);
+                    pimpl->recv_callback(nread, buf, addr, flags);
                 });
             assert(rc==0 || print_error(rc));
         }
@@ -112,7 +159,8 @@ namespace uvpp
 
             // get buf from mempool
             uv_buf_t uvbuf;
-            alloc_callback(65536, &uvbuf);
+            auto pimpl = static_cast<Impl*>(m_handle->data);
+            pimpl->alloc_callback(65536, &uvbuf);
 
             uv_udp_send_t *req = (uv_udp_send_t*)uvbuf.base;
             char *data = (char *)(req + 1);
@@ -121,45 +169,11 @@ namespace uvpp
 
             int rc = uv_udp_send(req, m_handle, &uvbuf, 1,
                 (const struct sockaddr *)&saddr, [](uv_udp_send_t *req, int status) {
-                auto self = static_cast<Udp*>(req->handle->data);
-                self->m_mempool.push(req);
+                auto pimpl = static_cast<Impl*>(req->handle->data);
+                pimpl->mempool.push(req);
             });
             return rc;
         }
-
-    private:
-        void alloc_callback(size_t suggested_size, uv_buf_t *buf) {
-            size_t nbytes = 65536;
-            if (m_mempool.empty()) {
-                buf->base = (char *)malloc(nbytes);
-                buf->len = nbytes;
-            }
-            else {
-                buf->base = (char *)m_mempool.top();
-                buf->len = nbytes;
-                m_mempool.pop();
-            }
-        }
-
-        void recv_callback(ssize_t nread, const uv_buf_t *buf,
-            const struct sockaddr *addr, unsigned flags) {
-            if (nread==0 && addr==NULL) {
-                // EAGAIN: don't pass this to user
-            }
-            else if (nread < 0) {
-                m_callback(buf->base, nread, addr);
-            }
-            else {
-                m_callback(buf->base, nread, addr);
-            }
-
-            if (buf->base)
-                m_mempool.push(buf->base);
-        }
-
-    private:
-        DataRecvCallback m_callback;
-        std::stack<void*> m_mempool;
     };
 }
 

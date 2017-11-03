@@ -66,27 +66,15 @@ namespace uvpp
     bool has_ref() { return uv_has_ref(as_handle())!=0; }
 
   protected:
-    BaseHandle() {
-      m_handle = new T();
-      m_handle->type = UV_UNKNOWN_HANDLE;
-      m_handle->data = this;
-    }
+    BaseHandle() : m_handle(nullptr) {}
 
-    ~BaseHandle()
-    {
-      m_handle->data = nullptr;
-      if (m_handle->type != UV_UNKNOWN_HANDLE) {
-          uv_close(as_handle(), [](uv_handle_t *handle){
-            delete reinterpret_cast<T*>(handle);
-          });
-      }
-    }
+    ~BaseHandle() {}
 
   public:
     BaseHandle(const BaseHandle&) = delete;
     BaseHandle& operator=(const BaseHandle&) = delete;
 
-  private:
+  protected:
     uv_handle_t *as_handle() { return reinterpret_cast<uv_handle_t*>(m_handle); }
 
   protected:
@@ -95,51 +83,80 @@ namespace uvpp
 
   class Signal : public BaseHandle<uv_signal_t>
   {
+    struct Impl
+    {
+        uv_signal_t handle;
+
+        BasicCallback callback;
+    };
+
   public:
     Signal(Loop& uvloop) {
-      uv_signal_init(uvloop, m_handle);
+        auto pimpl = new Impl();
+        m_handle = &pimpl->handle;
+        m_handle->data = pimpl;        
+        uv_signal_init(uvloop, m_handle);
+    }
+
+    ~Signal() {
+        uv_close(as_handle(), [](uv_handle_t *handle){
+            delete static_cast<Impl*>(handle->data);
+        });
     }
 
     void set_callback(BasicCallback cb) {
-      m_callback = cb;
+        auto pimpl = static_cast<Impl*>(m_handle->data);
+        pimpl->callback = cb;
     }
 
     void start(int signum) {
       uv_signal_start(m_handle, [](uv_signal_t *handle, int signum){
-        static_cast<Signal*>(handle->data)->m_callback();
+        static_cast<Impl*>(handle->data)->callback();
       }, signum);
     }
 
     void stop() { uv_signal_stop(m_handle); }
-
-  private:
-    BasicCallback m_callback;
   };
 
   class Timer : public BaseHandle<uv_timer_t>
   {
+    struct Impl
+    {
+        uv_timer_t handle;
+        
+        BasicCallback callback;
+    };
+    
   public:
     Timer(Loop& uvloop) {
-      uv_timer_init(uvloop, m_handle);
+        auto pimpl = new Impl();
+        m_handle = &pimpl->handle;
+        m_handle->data = pimpl;
+        uv_timer_init(uvloop, m_handle);
+    }
+
+    ~Timer() {
+        uv_close(as_handle(), [](uv_handle_t *handle){
+            delete static_cast<Impl*>(handle->data);
+        });
     }
 
     void set_callback(BasicCallback cb) {
-      m_callback = cb;
+        auto pimpl = static_cast<Impl*>(m_handle->data);
+        pimpl->callback = cb;
     }
 
     void start(uint64_t timeout, uint64_t repeat) {
       uv_timer_start(m_handle, [](uv_timer_t *handle){
-        static_cast<Timer*>(handle->data)->m_callback();
+        static_cast<Impl*>(handle->data)->callback();
       }, timeout, repeat);
     }
 
     void stop() { uv_timer_stop(m_handle); }
     void again() { uv_timer_again(m_handle); }
-
-  private:
-    BasicCallback m_callback;
   };
 
+#if 0
 #define DEFINE_WATCHER(Klass, klass) \
   class Klass : public BaseHandle<uv_##klass##_t> {                 \
   public:                                                           \
@@ -193,7 +210,7 @@ namespace uvpp
     uv_loop_t *m_uvloop;
     StatusEventsCallback m_callback;
   };
-
+#endif
 } // namespace uvpp
 #endif
 
