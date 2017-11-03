@@ -84,6 +84,12 @@ namespace uvpp
             return rc;
         }
 
+        int set_multicast_loop(bool on) {
+            int rc = uv_udp_set_multicast_loop(phandle(), on);
+            assert(rc==0 || print_error(rc));
+            return rc;
+        }
+
         int set_multicast_interface(const std::string& iface_addr) {
             int rc = uv_udp_set_multicast_interface(phandle(), iface_addr.c_str());
             assert(rc==0 || print_error(rc));
