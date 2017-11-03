@@ -65,12 +65,6 @@ namespace uvpp
             uv_udp_init_ex(uvloop, phandle(), AF_INET);
         }
 
-        ~Udp() {
-            if (is_active()) {
-                fprintf(stderr, "uvpp::Udp <%p> : still active\n", this);
-            }
-        }
-
         int bind(const struct sockaddr_in& saddr, unsigned int flags=0) {
             int rc = uv_udp_bind(phandle(), (struct sockaddr*)&saddr, flags);
             assert(rc==0 || print_error(rc));

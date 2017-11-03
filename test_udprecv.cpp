@@ -44,11 +44,5 @@ int main()
 
     uvloop.run();
     printf("loop exit\n");
-
-    mcast.stop();
-    while (mcast.is_active()) {
-        fprintf(stderr, ".");
-        uvloop.run(UV_RUN_ONCE);
-    }
 }
 
