@@ -145,20 +145,21 @@ namespace uvpp
     void again() { uv_timer_again(phandle()); }
   };
 
-#if 0
-#define DEFINE_WATCHER(Klass, klass) \
-  class Klass : public BaseHandle<uv_##klass##_t> {                 \
+#define DEFINE_WATCHER(Klass, klass)                                \
+  struct Klass##Impl {                                              \
+    uv_##klass##_t handle;                                          \
+    BasicCallback callback;                                         \
+  };                                                                \
+  class Klass : public BaseHandle<Klass##Impl> {                    \
   public:                                                           \
-    Klass(Loop& uvloop) { uv_##klass##_init(uvloop, m_handle); }    \
-    void set_callback(BasicCallback cb) { m_callback = cb; }        \
+    Klass(Loop& uvloop) { uv_##klass##_init(uvloop, phandle()); }   \
+    void set_callback(BasicCallback cb) { pimpl->callback = cb; }   \
     void start() {                                                  \
-      uv_##klass##_start(m_handle, [](uv_##klass##_t *handle){      \
-        static_cast<Klass*>(handle->data)->m_callback();            \
+      uv_##klass##_start(phandle(), [](uv_##klass##_t *handle){     \
+        static_cast<Klass##Impl*>(handle->data)->callback();        \
       });                                                           \
     }                                                               \
-    void stop() { uv_##klass##_stop(m_handle); }                    \
-  private:                                                          \
-    BasicCallback m_callback;                                       \
+    void stop() { uv_##klass##_stop(phandle()); }                   \
   };
 
   DEFINE_WATCHER(Prepare, prepare)
@@ -167,39 +168,42 @@ namespace uvpp
 
 #undef DEFINE_WATCHER
 
-  class Poll : public BaseHandle<uv_poll_t>
+  struct PollImpl
+  {
+	uv_poll_t handle;
+	uv_loop_t *uvloop;
+	StatusEventsCallback callback;
+  };
+
+  class Poll : public BaseHandle<PollImpl>
   {
   public:
-    Poll(Loop& uvloop) : m_uvloop(uvloop) {
+    Poll(Loop& uvloop) {
+        pimpl->uvloop = uvloop;
     }
 
     Poll(Loop& uvloop, uv_os_sock_t sock) : Poll(uvloop) {
-      init(sock);
+        init(sock);
     }
 
     void init(uv_os_sock_t sock) {
-      assert(m_handle->type==UV_UNKNOWN_HANDLE);
-      uv_poll_init_socket(m_uvloop, m_handle, sock);
+        assert(phandle()->type==UV_UNKNOWN_HANDLE);
+        uv_poll_init_socket(pimpl->uvloop, phandle(), sock);
     }
 
     void set_callback(StatusEventsCallback cb) {
-      m_callback = cb;
+        pimpl->callback = cb;
     }
 
     void start(int events) {
-      assert(m_handle->type==UV_POLL);
-      uv_poll_start(m_handle, events, [](uv_poll_t *handle, int status, int events){
-        static_cast<Poll*>(handle->data)->m_callback(status, events);
-      });
+        assert(phandle()->type==UV_POLL);
+        uv_poll_start(phandle(), events, [](uv_poll_t *handle, int status, int events){
+            static_cast<Impl*>(handle->data)->callback(status, events);
+        });
     }
 
-    void stop() { uv_poll_stop(m_handle); }
-
-  private:
-    uv_loop_t *m_uvloop;
-    StatusEventsCallback m_callback;
+    void stop() { uv_poll_stop(phandle()); }
   };
-#endif
 } // namespace uvpp
 #endif
 
