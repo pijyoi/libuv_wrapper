@@ -171,7 +171,6 @@ namespace uvpp
   struct PollImpl
   {
 	uv_poll_t handle;
-	uv_loop_t *uvloop;
 	StatusEventsCallback callback;
   };
 
@@ -179,7 +178,8 @@ namespace uvpp
   {
   public:
     Poll(Loop& uvloop) {
-        pimpl->uvloop = uvloop;
+        // use readonly field as temporary storage
+        phandle()->loop = uvloop;
     }
 
     Poll(Loop& uvloop, uv_os_sock_t sock) : Poll(uvloop) {
@@ -188,7 +188,7 @@ namespace uvpp
 
     void init(uv_os_sock_t sock) {
         assert(phandle()->type==UV_UNKNOWN_HANDLE);
-        uv_poll_init_socket(pimpl->uvloop, phandle(), sock);
+        uv_poll_init_socket(phandle()->loop, phandle(), sock);
     }
 
     void set_callback(StatusEventsCallback cb) {
