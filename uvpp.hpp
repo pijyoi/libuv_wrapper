@@ -70,14 +70,18 @@ namespace uvpp
 
     BaseHandle() {
         pimpl = new Impl();
-		pimpl->handle.type = UV_UNKNOWN_HANDLE;
+        pimpl->handle.type = UV_UNKNOWN_HANDLE;
         pimpl->handle.data = pimpl;
     }
 
     ~BaseHandle() {
-        uv_close(as_base_handle(), [](uv_handle_t *handle){
-            delete static_cast<Impl*>(handle->data);
-        });
+        if (pimpl->handle.type==UV_UNKNOWN_HANDLE) {
+            delete pimpl;
+        } else {
+            uv_close(as_base_handle(), [](uv_handle_t *handle){
+                delete static_cast<Impl*>(handle->data);
+            });
+        }
     }
 
   public:
@@ -170,8 +174,8 @@ namespace uvpp
 
   struct PollImpl
   {
-	uv_poll_t handle;
-	StatusEventsCallback callback;
+    uv_poll_t handle;
+    StatusEventsCallback callback;
   };
 
   class Poll : public BaseHandle<PollImpl>
