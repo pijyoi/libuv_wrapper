@@ -3,6 +3,7 @@
 
 #include <string>
 #include <stack>
+#include <memory>
 
 #include <string.h>
 
@@ -12,33 +13,31 @@ namespace uvpp
 {
     typedef std::function<void(char *, int, const struct sockaddr*)> DataRecvCallback;
 
+    template <int nbytes>
+    struct MemPool
+    {
+        std::stack<std::unique_ptr<char[]>> buffers;
+        char *get() {
+            char *ptr;
+            if (buffers.empty()) {
+                ptr = new char[nbytes];
+            } else {
+                ptr = buffers.top().release();
+                buffers.pop();
+            }
+            return ptr;
+        }
+        void put(char *ptr) {
+            buffers.push(std::unique_ptr<char[]>(ptr));
+        }
+        int buflen() { return nbytes; }
+    };
+
     struct UdpImpl
     {
         uv_udp_t handle;
         DataRecvCallback callback;
-        std::stack<void*> mempool;
-
-        ~UdpImpl()
-        {
-            while (!mempool.empty()) {
-                auto ptr = mempool.top();
-                mempool.pop();
-                free(ptr);
-            }
-        }
-
-        void alloc_callback(size_t suggested_size, uv_buf_t *buf) {
-            size_t nbytes = 65536;
-            if (mempool.empty()) {
-                buf->base = (char *)malloc(nbytes);
-                buf->len = nbytes;
-            }
-            else {
-                buf->base = (char *)mempool.top();
-                buf->len = nbytes;
-                mempool.pop();
-            }
-        }
+        MemPool<65536> mempool;
 
         void recv_callback(ssize_t nread, const uv_buf_t *buf,
             const struct sockaddr *addr, unsigned flags) {
@@ -53,7 +52,7 @@ namespace uvpp
             }
 
             if (buf->base)
-                mempool.push(buf->base);
+                mempool.put(buf->base);
         }
     };
 
@@ -122,12 +121,24 @@ namespace uvpp
             int rc = uv_udp_recv_start(phandle(),
                 [](uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf){
                     auto pimpl = static_cast<Impl*>(handle->data);
-                    pimpl->alloc_callback(suggested_size, buf);
+                    buf->base = pimpl->mempool.get();
+                    buf->len = pimpl->mempool.buflen();
                 },
                 [](uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf,
                     const struct sockaddr *addr, unsigned flags){
                     auto pimpl = static_cast<Impl*>(handle->data);
-                    pimpl->recv_callback(nread, buf, addr, flags);
+                    if (nread==0 && addr==NULL) {
+                        // EAGAIN: don't pass this to user
+                    }
+                    else if (nread < 0) {
+                        pimpl->callback(buf->base, nread, addr);
+                    }
+                    else {
+                        pimpl->callback(buf->base, nread, addr);
+                    }
+
+                    if (buf->base)
+                        pimpl->mempool.put(buf->base);
                 });
             assert(rc==0 || print_error(rc));
         }
@@ -151,7 +162,8 @@ namespace uvpp
 
             // get buf from mempool
             uv_buf_t uvbuf;
-            pimpl->alloc_callback(65536, &uvbuf);
+            uvbuf.base = pimpl->mempool.get();
+            uvbuf.len = pimpl->mempool.buflen();
 
             uv_udp_send_t *req = (uv_udp_send_t*)uvbuf.base;
             char *data = (char *)(req + 1);
@@ -161,7 +173,7 @@ namespace uvpp
             int rc = uv_udp_send(req, phandle(), &uvbuf, 1,
                 (const struct sockaddr *)&saddr, [](uv_udp_send_t *req, int status) {
                 auto pimpl = static_cast<Impl*>(req->handle->data);
-                pimpl->mempool.push(req);
+                pimpl->mempool.put((char*)req);
             });
             return rc;
         }
