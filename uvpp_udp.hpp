@@ -2,36 +2,15 @@
 #define UVPP_UDP_HPP
 
 #include <string>
-#include <stack>
-#include <memory>
 
 #include <string.h>
 
 #include "uvpp.hpp"
+#include "uvpp_util.hpp"
 
 namespace uvpp
 {
     typedef std::function<void(char *, int, const struct sockaddr*)> DataRecvCallback;
-
-    template <int nbytes>
-    struct MemPool
-    {
-        std::stack<std::unique_ptr<char[]>> buffers;
-        char *get() {
-            char *ptr;
-            if (buffers.empty()) {
-                ptr = new char[nbytes];
-            } else {
-                ptr = buffers.top().release();
-                buffers.pop();
-            }
-            return ptr;
-        }
-        void put(char *ptr) {
-            buffers.push(std::unique_ptr<char[]>(ptr));
-        }
-        int buflen() { return nbytes; }
-    };
 
     struct UdpImpl
     {
