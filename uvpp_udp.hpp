@@ -160,15 +160,12 @@ namespace uvpp
             if (sizeof(uv_udp_send_t) + len > 65536)
                 return UV_EMSGSIZE;
 
-            // get buf from mempool
-            uv_buf_t uvbuf;
-            uvbuf.base = pimpl->mempool.get();
-            uvbuf.len = pimpl->mempool.buflen();
+            char *mem = pimpl->mempool.get();
+            auto req = (uv_udp_send_t*)mem;
+            char *payload = mem + sizeof(*req);
 
-            uv_udp_send_t *req = (uv_udp_send_t*)uvbuf.base;
-            char *data = (char *)(req + 1);
-            memcpy(data, buf, len);
-            uvbuf = uv_buf_init(data, len);
+            memcpy(payload, buf, len);
+            uv_buf_t uvbuf = uv_buf_init(payload, len);
 
             int rc = uv_udp_send(req, phandle(), &uvbuf, 1,
                 (const struct sockaddr *)&saddr, [](uv_udp_send_t *req, int status) {
