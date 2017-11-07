@@ -20,7 +20,7 @@ int main()
     std::vector<std::unique_ptr<uvpp::Tcp>> clients;
 
     struct sockaddr_in saddr;
-    uv_ip4_addr("0.0.0.0", 12345, &saddr);
+    uv_ip4_addr("127.0.0.1", 12345, &saddr);
     server.bind(saddr);
     server.listen([&](std::unique_ptr<uvpp::Tcp> conn){
         struct sockaddr_in saddr;
@@ -44,6 +44,8 @@ int main()
 
             auto str = std::string(buf, len);
             std::cout << str << std::endl;
+
+            pconn->write(buf, len);
         });
         conn->read_start();
         clients.emplace_back(std::move(conn));
