@@ -60,7 +60,7 @@ namespace uvpp
                 auto req = (uv_write_t*)mem;
                 char *payload = mem + sizeof(*req);
 
-                int chunk = std::min(mempool.bufsize(), len);
+                int chunk = std::min(mempool.buflen(), len);
                 memcpy(payload, buf, chunk);
 
                 buf += chunk;
