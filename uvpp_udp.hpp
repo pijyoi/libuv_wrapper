@@ -90,11 +90,6 @@ namespace uvpp
             return size==0 ? value : send_buffer_size();
         }
 
-        void set_callback(DataRecvCallback cb)
-        {
-            pimpl->callback = cb;
-        }
-
         void start()
         {
             int rc = uv_udp_recv_start(phandle(),

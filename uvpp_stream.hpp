@@ -16,11 +16,6 @@ namespace uvpp
     public:
         typedef TypeImpl Impl;
 
-        void set_callback(DataReadCallback cb)
-        {
-            this->pimpl->callback = cb;
-        }
-
         int start()
         {
             int rc = uv_read_start(as_stream(),

@@ -58,13 +58,6 @@ namespace uvpp
   template <typename TypeImpl>
   class BaseHandle
   {
-  public:
-    bool is_active() { return uv_is_active(as_base_handle())!=0; }
-    bool is_closing() { return uv_is_closing(as_base_handle())!=0; }
-    void ref() { uv_ref(as_base_handle()); }
-    void unref() { uv_unref(as_base_handle()); }
-    bool has_ref() { return uv_has_ref(as_base_handle())!=0; }
-
   protected:
     typedef TypeImpl Impl;
 
@@ -88,6 +81,15 @@ namespace uvpp
     BaseHandle(const BaseHandle&) = delete;
     BaseHandle& operator=(const BaseHandle&) = delete;
 
+  public:
+    bool is_active() { return uv_is_active(as_base_handle())!=0; }
+    bool is_closing() { return uv_is_closing(as_base_handle())!=0; }
+    void ref() { uv_ref(as_base_handle()); }
+    void unref() { uv_unref(as_base_handle()); }
+    bool has_ref() { return uv_has_ref(as_base_handle())!=0; }
+
+    void set_callback(decltype(Impl::callback) cb) { pimpl->callback = cb; }
+
   protected:
     decltype(Impl::handle) *phandle() { return &pimpl->handle; }
     uv_handle_t *as_base_handle() { return reinterpret_cast<uv_handle_t*>(phandle()); }
@@ -107,10 +109,6 @@ namespace uvpp
   public:
     Signal(Loop& uvloop) {
         uv_signal_init(uvloop, phandle());
-    }
-
-    void set_callback(BasicCallback cb) {
-        pimpl->callback = cb;
     }
 
     void start(int signum) {
@@ -135,10 +133,6 @@ namespace uvpp
         uv_timer_init(uvloop, phandle());
     }
 
-    void set_callback(BasicCallback cb) {
-        pimpl->callback = cb;
-    }
-
     void start(uint64_t timeout, uint64_t repeat) {
       uv_timer_start(phandle(), [](uv_timer_t *handle){
         static_cast<Impl*>(handle->data)->callback();
@@ -157,7 +151,6 @@ namespace uvpp
   class Klass : public BaseHandle<Klass##Impl> {                    \
   public:                                                           \
     Klass(Loop& uvloop) { uv_##klass##_init(uvloop, phandle()); }   \
-    void set_callback(BasicCallback cb) { pimpl->callback = cb; }   \
     void start() {                                                  \
       uv_##klass##_start(phandle(), [](uv_##klass##_t *handle){     \
         static_cast<Klass##Impl*>(handle->data)->callback();        \
@@ -193,10 +186,6 @@ namespace uvpp
     void init(uv_os_sock_t sock) {
         assert(phandle()->type==UV_UNKNOWN_HANDLE);
         uv_poll_init_socket(phandle()->loop, phandle(), sock);
-    }
-
-    void set_callback(StatusEventsCallback cb) {
-        pimpl->callback = cb;
     }
 
     void start(int events) {
