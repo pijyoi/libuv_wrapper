@@ -16,7 +16,7 @@ namespace uvpp
     public:
         typedef TypeImpl Impl;
 
-        int start()
+        int read_start()
         {
             int rc = uv_read_start(as_stream(),
                 [](uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf){
@@ -43,10 +43,11 @@ namespace uvpp
             return rc;
         }
 
-        int stop()
+        int read_stop()
         {
             int rc = uv_read_stop(as_stream());
             assert(rc==0 || print_error(rc));
+            return rc;
         }
 
         int write(const char *buf, int len)

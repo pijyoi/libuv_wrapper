@@ -90,7 +90,7 @@ namespace uvpp
             return size==0 ? value : send_buffer_size();
         }
 
-        void start()
+        int recv_start()
         {
             int rc = uv_udp_recv_start(phandle(),
                 [](uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf){
@@ -115,12 +115,17 @@ namespace uvpp
                         pimpl->mempool.put(buf->base);
                 });
             assert(rc==0 || print_error(rc));
+            return rc;
         }
 
-        void stop()
+        // backwards compatibility
+        void start() { recv_start(); }
+
+        int recv_stop()
         {
             int rc = uv_udp_recv_stop(phandle());
             assert(rc==0 || print_error(rc));
+            return rc;
         }
 
         int try_send(const char *buf, int len, const struct sockaddr_in& saddr) {

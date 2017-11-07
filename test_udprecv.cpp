@@ -40,7 +40,7 @@ int main()
         }
         blkcnt.push_back(payload[1]);
     });
-    mcast.start();
+    mcast.recv_start();
 
     uvloop.run();
     printf("loop exit\n");

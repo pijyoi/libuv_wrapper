@@ -13,7 +13,7 @@ int main()
         auto str = std::string(buf, len);
         std::cout << str.size() << ": " << str << std::endl;
     });
-    ttyin.start();
+    ttyin.read_start();
 
     uvloop.run();
 }
