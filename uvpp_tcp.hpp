@@ -17,6 +17,7 @@ namespace uvpp
         MemPool<65536> mempool;
 
         ConnectionCallback connection_cb;
+        StatusCallback connect_cb;
     };
 
     class Tcp : public Stream<TcpImpl>
@@ -61,6 +62,20 @@ namespace uvpp
                 // documentation guarantees success...
                 assert(rc==0 || print_error(rc));
                 pimpl->connection_cb(std::move(client));
+            });
+            assert(rc==0 || print_error(rc));
+            return rc;
+        }
+
+        int connect(const struct sockaddr_in& saddr, StatusCallback connect_cb) {
+            pimpl->connect_cb = connect_cb;
+            auto req = new uv_connect_t();
+            req->data = pimpl;
+            int rc = uv_tcp_connect(req, phandle(), (const struct sockaddr*)&saddr,
+                [](uv_connect_t *req, int status){
+                    auto pimpl = static_cast<Impl*>(req->data);
+                    delete req;
+                    pimpl->connect_cb(status);
             });
             assert(rc==0 || print_error(rc));
             return rc;
