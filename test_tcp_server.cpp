@@ -22,15 +22,16 @@ int main()
     struct sockaddr_in saddr;
     uv_ip4_addr("127.0.0.1", 12345, &saddr);
     server.bind(saddr);
-    server.listen([&](std::unique_ptr<uvpp::Tcp> conn){
+    server.listen([&](uvpp::Tcp client){
         struct sockaddr_in saddr;
-        conn->getpeername(saddr);
+        client.getpeername(saddr);
         char buffer[64];
         uv_ip4_name(&saddr, buffer, sizeof(buffer));
         printf("connection from %s:%d\n", buffer, ntohs(saddr.sin_port));
 
-        auto pconn = conn.get();
-        conn->set_callback([&clients, pconn](char *buf, int len){
+        clients.emplace_back(new uvpp::Tcp(std::move(client)));
+        auto pconn = clients.back().get();
+        pconn->set_callback([&clients, pconn](char *buf, int len){
             if (len < 0) {
                 uvpp::print_error(len);
                 clients.erase(std::remove_if(clients.begin(),
@@ -47,8 +48,7 @@ int main()
 
             pconn->write(buf, len);
         });
-        conn->read_start();
-        clients.emplace_back(std::move(conn));
+        pconn->read_start();
     });
 
     uvloop.run();

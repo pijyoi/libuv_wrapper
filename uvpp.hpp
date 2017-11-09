@@ -68,6 +68,8 @@ namespace uvpp
     }
 
     ~BaseHandle() {
+        if (!pimpl)
+            return;
         if (pimpl->handle.type==UV_UNKNOWN_HANDLE) {
             delete pimpl;
         } else {
@@ -80,6 +82,16 @@ namespace uvpp
   public:
     BaseHandle(const BaseHandle&) = delete;
     BaseHandle& operator=(const BaseHandle&) = delete;
+    BaseHandle(BaseHandle&& other) {
+        pimpl = other.pimpl;
+        other.pimpl = nullptr;
+    }
+    BaseHandle& operator=(BaseHandle&& other) {
+        if (this != &other) {
+            std::swap(pimpl, other.pimpl);
+        }
+        return *this;
+    }
 
   public:
     bool is_active() { return uv_is_active(as_base_handle())!=0; }

@@ -8,7 +8,7 @@ namespace uvpp
     class Tcp;
 
     typedef std::function<void(int)> StatusCallback;
-    typedef std::function<void(std::unique_ptr<Tcp> conn)> ConnectionCallback;
+    typedef std::function<void(Tcp conn)> ConnectionCallback;
 
     struct TcpImpl
     {
@@ -57,8 +57,8 @@ namespace uvpp
                 }
                 auto pimpl = static_cast<Impl*>(server->data);
                 // uv_accept will fail if socket has been created, thus the use of AF_UNSPEC
-                std::unique_ptr<Tcp> client(new Tcp(server->loop, AF_UNSPEC));
-                int rc = uv_accept(server, client->as_stream());
+                Tcp client(server->loop, AF_UNSPEC);
+                int rc = uv_accept(server, client.as_stream());
                 // documentation guarantees success...
                 assert(rc==0 || print_error(rc));
                 pimpl->connection_cb(std::move(client));
