@@ -1,4 +1,4 @@
-#include <vector>
+#include <list>
 #include <memory>
 #include <string>
 #include <algorithm>
@@ -17,7 +17,7 @@ int main()
 
     uvpp::Tcp server(uvloop);
 
-    std::vector<std::unique_ptr<uvpp::Tcp>> clients;
+    std::list<std::unique_ptr<uvpp::Tcp>> clients;
 
     struct sockaddr_in saddr;
     uv_ip4_addr("127.0.0.1", 12345, &saddr);
@@ -30,25 +30,20 @@ int main()
         printf("connection from %s:%d\n", buffer, ntohs(saddr.sin_port));
 
         clients.emplace_back(new uvpp::Tcp(std::move(client)));
-        auto pconn = clients.back().get();
-        pconn->set_callback([&clients, pconn](char *buf, int len){
+        auto connit = --clients.end();
+        (*connit)->set_callback([&clients, connit](char *buf, int len){
             if (len < 0) {
                 uvpp::print_error(len);
-                clients.erase(std::remove_if(clients.begin(),
-                                             clients.end(),
-                                             [pconn](decltype(clients.front()) elem){
-                                                return elem.get()==pconn;
-                                             }),
-                              clients.end());
+                clients.erase(connit);
                 return;
             }
 
             auto str = std::string(buf, len);
             std::cout << str << std::endl;
 
-            pconn->write(buf, len);
+            (*connit)->write(buf, len);
         });
-        pconn->read_start();
+        (*connit)->read_start();
     });
 
     uvloop.run();
