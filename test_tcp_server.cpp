@@ -28,7 +28,7 @@ int main()
         printf("connection from %s:%d\n", buffer, ntohs(saddr.sin_port));
 
         clients.emplace_back(std::move(conn));
-        auto connit = --clients.end();
+        auto connit = std::prev(clients.end());
         connit->set_callback([&clients, connit](char *buf, int len){
             if (len < 0) {
                 uvpp::print_error(len);
