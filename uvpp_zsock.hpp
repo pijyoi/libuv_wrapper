@@ -108,6 +108,106 @@ namespace uvpp
         Idle m_idle;
         Poll m_poll;
     };
+
+    // alternate implementation that doesn't use prepare and check watchers.
+    // after performing send on this zsock, you need to call Zsock::check()
+    class Zsock
+    {
+    public:
+        Zsock(Loop& uvloop)
+          : m_zsock(nullptr), m_events(0),
+            m_idle(uvloop), m_poll(uvloop)
+        {
+            m_idle.set_callback([this](){
+                int revents = get_revents(m_zsock, m_events);
+                if (revents) {
+                    m_callback();
+                } else {
+                    // set level low
+                    m_idle.stop();
+                }
+            });
+
+            m_poll.set_callback([this](int status, int events){
+                // set level high
+                m_idle.start();
+            });
+        }
+
+        Zsock(Loop& uvloop, void *zsock)
+          : Zsock(uvloop)
+        {
+            init(zsock);
+        }
+
+        void check()
+        {
+            m_idle.start();
+        }
+
+        void init(void *zsock)
+        {
+            assert(m_zsock==nullptr);
+
+            m_zsock = zsock;
+
+            uv_os_sock_t sockfd;
+            size_t optlen = sizeof(sockfd);
+            int rc = zmq_getsockopt(zsock, ZMQ_FD, &sockfd, &optlen);
+            assert(rc==0);
+
+            m_poll.init(sockfd);
+        }
+
+        void set_callback(BasicCallback cb)
+        {
+            m_callback = cb;
+        }
+
+        void start(int events = UV_READABLE)
+        {
+            assert(m_zsock != nullptr);
+
+            m_events = events;
+            m_poll.start(m_events ? UV_READABLE : 0);
+        }
+
+        void stop()
+        {
+            m_idle.stop();
+            m_poll.stop();
+        }
+
+    private:
+        int get_revents(void *zsock, int events)
+        {
+            int revents = 0;
+
+            int zmq_events;
+            size_t optlen = sizeof(zmq_events);
+            int rc = zmq_getsockopt(zsock, ZMQ_EVENTS, &zmq_events, &optlen);
+
+            if (rc==-1) {
+                // on error, make callback get called
+                return events;
+            }
+
+            if (zmq_events & ZMQ_POLLOUT)
+                revents |= events & UV_WRITABLE;
+            if (zmq_events & ZMQ_POLLIN)
+                revents |= events & UV_READABLE;
+
+            return revents;
+        }
+
+    private:
+        BasicCallback m_callback;
+
+        void *m_zsock;
+        int m_events;
+        Idle m_idle;
+        Poll m_poll;
+    };
 }
 
 #endif
