@@ -123,14 +123,16 @@ namespace uvpp
                 if (revents) {
                     m_callback();
                 } else {
-                    // set level low
                     m_idle.stop();
                 }
             });
 
             m_poll.set_callback([this](int status, int events){
-                // set level high
-                m_idle.start();
+                int revents = get_revents(m_zsock, m_events);
+                if (revents) {
+                    m_callback();
+                    m_idle.start();
+                }
             });
         }
 
