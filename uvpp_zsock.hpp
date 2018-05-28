@@ -110,28 +110,28 @@ namespace uvpp
     };
 
     // alternate implementation that doesn't use prepare and check watchers.
-    // after performing send on this zsock, you need to call Zsock::check()
+    // if you send on the zsock outside of the user callback, you need to
+    // call Zsock::check_again().
     class Zsock
     {
     public:
         Zsock(Loop& uvloop)
           : m_zsock(nullptr), m_events(0),
-            m_idle(uvloop), m_poll(uvloop)
+            m_poll(uvloop), m_timer(uvloop)
         {
-            m_idle.set_callback([this](){
-                int revents = get_revents(m_zsock, m_events);
-                if (revents) {
-                    m_callback();
-                } else {
-                    m_idle.stop();
-                }
-            });
-
             m_poll.set_callback([this](int status, int events){
                 int revents = get_revents(m_zsock, m_events);
                 if (revents) {
                     m_callback();
-                    m_idle.start();
+                    check_again();
+                }
+            });
+
+            m_timer.set_callback([this](){
+                int revents = get_revents(m_zsock, m_events);
+                if (revents) {
+                    m_callback();
+                    check_again();
                 }
             });
         }
@@ -142,9 +142,9 @@ namespace uvpp
             init(zsock);
         }
 
-        void check()
+        void check_again()
         {
-            m_idle.start();
+            m_timer.start(0, 0);    // one-shot
         }
 
         void init(void *zsock)
@@ -176,8 +176,8 @@ namespace uvpp
 
         void stop()
         {
-            m_idle.stop();
             m_poll.stop();
+            m_timer.stop();
         }
 
     private:
@@ -207,8 +207,8 @@ namespace uvpp
 
         void *m_zsock;
         int m_events;
-        Idle m_idle;
         Poll m_poll;
+        Timer m_timer;
     };
 }
 
