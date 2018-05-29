@@ -172,6 +172,12 @@ namespace uvpp
 
             m_events = events;
             m_poll.start(m_events ? UV_READABLE : 0);
+
+            // the provided zsock could have been left in the following state:
+            // - it has messages left in it
+            // - its ZMQ_FD is non-readable
+            // therefore we initiate our draining procedure on start
+            check_again();
         }
 
         void stop()
