@@ -58,9 +58,14 @@ namespace uvpp
             return rc;
         }
 
-        int getsockname(struct sockaddr_in& saddr) {
-            int namelen = sizeof(saddr);
-            return uv_udp_getsockname(phandle(), (struct sockaddr*)&saddr, &namelen);
+        int getsockname(sockaddr_in& saddr) {
+            return getsockname((sockaddr*)&saddr, sizeof(saddr));
+        }
+
+        int getsockname(sockaddr *saddr, int namelen) {
+            int rc = uv_udp_getsockname(phandle(), saddr, &namelen);
+            assert(rc==0 || print_error(rc));
+            return rc;
         }
 
         int set_membership(const std::string& mcast_addr, const std::string& iface_addr,
