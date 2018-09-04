@@ -39,12 +39,21 @@ namespace uvpp
     {
     public:
         Udp(Loop& uvloop)
+          : Udp(uvloop, AF_INET)
         {
-            uv_udp_init_ex(uvloop, phandle(), AF_INET);
         }
 
-        int bind(const struct sockaddr_in& saddr, unsigned int flags=0) {
-            int rc = uv_udp_bind(phandle(), (struct sockaddr*)&saddr, flags);
+        Udp(Loop& uvloop, int af)
+        {
+            uv_udp_init_ex(uvloop, phandle(), af);
+        }
+
+        int bind(const sockaddr_in& saddr, unsigned int flags=0) {
+            return bind((sockaddr*)&saddr, flags);
+        }
+
+        int bind(const sockaddr *saddr, unsigned int flags=0) {
+            int rc = uv_udp_bind(phandle(), saddr, flags);
             assert(rc==0 || print_error(rc));
             return rc;
         }
@@ -128,13 +137,20 @@ namespace uvpp
             return rc;
         }
 
-        int try_send(const char *buf, int len, const struct sockaddr_in& saddr) {
-            uv_buf_t uvbuf = uv_buf_init(const_cast<char*>(buf), len);
-            return uv_udp_try_send(phandle(), &uvbuf, 1,
-                (const struct sockaddr *)&saddr);
+        int try_send(const char *buf, int len, const sockaddr_in& saddr) {
+            return try_send(buf, len, (sockaddr*)&saddr);
         }
 
-        int send(const char *buf, int len, const struct sockaddr_in& saddr) {
+        int send(const char *buf, int len, const sockaddr_in& saddr) {
+            return send(buf, len, (sockaddr*)&saddr);
+        }
+
+        int try_send(const char *buf, int len, const sockaddr *saddr) {
+            uv_buf_t uvbuf = uv_buf_init(const_cast<char*>(buf), len);
+            return uv_udp_try_send(phandle(), &uvbuf, 1, saddr);
+        }
+
+        int send(const char *buf, int len, const sockaddr *saddr) {
             // our mempool only returns 64KB buffers
             if (sizeof(uv_udp_send_t) + len > 65536)
                 return UV_EMSGSIZE;
@@ -147,7 +163,7 @@ namespace uvpp
             uv_buf_t uvbuf = uv_buf_init(payload, len);
 
             int rc = uv_udp_send(req, phandle(), &uvbuf, 1,
-                (const struct sockaddr *)&saddr, [](uv_udp_send_t *req, int status) {
+                saddr, [](uv_udp_send_t *req, int status) {
                 auto pimpl = static_cast<Impl*>(req->handle->data);
                 pimpl->mempool.put((char*)req);
             });
