@@ -38,14 +38,8 @@ namespace uvpp
     class Udp : public BaseHandle<UdpImpl>
     {
     public:
-        Udp(Loop& uvloop)
-          : Udp(uvloop, AF_INET)
-        {
-        }
-
-        Udp(Loop& uvloop, int af)
-        {
-            uv_udp_init_ex(uvloop, phandle(), af);
+        Udp(Loop& uvloop, unsigned int flags=AF_INET) {
+            uv_udp_init_ex(uvloop, phandle(), flags);
         }
 
         int bind(const sockaddr_in& saddr, unsigned int flags=0) {
