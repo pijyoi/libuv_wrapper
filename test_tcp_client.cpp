@@ -2,7 +2,7 @@
 
 #include "uvpp_tcp.hpp"
 
-int main()
+int main(int argc, char *argv[])
 {
     uvpp::Loop uvloop;
 
@@ -13,20 +13,33 @@ int main()
     sigtrap.start(SIGINT);
     sigtrap.unref();
 
-    uvpp::Tcp client(uvloop);
+    const char *node = argv[1];
+    const char *service = argv[2];
 
-    struct sockaddr_in saddr;
-    uv_ip4_addr("127.0.0.1", 12345, &saddr);
-    client.connect(saddr, [&](int status){
+    uv_getaddrinfo_t aireq;
+    uv_getaddrinfo(uvloop, &aireq, NULL, node, service, NULL);
+
+    sockaddr_storage saddr;
+    memcpy(&saddr, aireq.addrinfo->ai_addr, aireq.addrinfo->ai_addrlen);
+
+    uv_freeaddrinfo(aireq.addrinfo);
+
+    uvpp::Tcp client(uvloop, AF_UNSPEC);
+
+    client.connect((sockaddr*)&saddr, [&](int status){
         if (status < 0) {
             uvpp::print_error(status);
             return;
         }
-        struct sockaddr_in saddr;
-        client.getpeername(saddr);
-        char buffer[64];
-        uv_ip4_name(&saddr, buffer, sizeof(buffer));
-        printf("connected to %s:%d\n", buffer, ntohs(saddr.sin_port));
+        sockaddr_storage saddr;
+        client.getpeername((sockaddr*)&saddr, sizeof(saddr));
+        uv_getnameinfo_t nireq;
+        uv_getnameinfo(uvloop, &nireq, NULL, (sockaddr*)&saddr, NI_NUMERICHOST | NI_NUMERICSERV);
+        if (saddr.ss_family==AF_INET6) {
+            printf("connected to [%s]:%s\n", nireq.host, nireq.service);
+        } else {
+            printf("connected to %s:%s\n", nireq.host, nireq.service);
+        }
 
         std::string msg = "hello world";
         client.write(msg.data(), msg.size());

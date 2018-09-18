@@ -13,19 +13,19 @@ int main()
     });
     sigtrap.start(SIGINT);
 
-    uvpp::Tcp server(uvloop);
+    uvpp::Tcp server(uvloop, AF_INET6);    // create dual-stack socket
 
     std::list<uvpp::Tcp> clients;
 
-    struct sockaddr_in saddr;
-    uv_ip4_addr("127.0.0.1", 12345, &saddr);
-    server.bind(saddr);
+    sockaddr_in6 saddr;
+    uv_ip6_addr("::", 12345, &saddr);
+    server.bind((sockaddr*)&saddr);
     server.listen([&](uvpp::Tcp conn){
-        struct sockaddr_in saddr;
-        conn.getpeername(saddr);
-        char buffer[64];
-        uv_ip4_name(&saddr, buffer, sizeof(buffer));
-        printf("connection from %s:%d\n", buffer, ntohs(saddr.sin_port));
+        sockaddr_storage saddr;
+        conn.getpeername((sockaddr*)&saddr, sizeof(saddr));
+        uv_getnameinfo_t nireq;
+        uv_getnameinfo(uvloop, &nireq, NULL, (sockaddr*)&saddr, NI_NUMERICHOST | NI_NUMERICSERV);
+        printf("connection from [%s]:%s\n", nireq.host, nireq.service);
 
         clients.emplace_back(std::move(conn));
         auto connit = std::prev(clients.end());
