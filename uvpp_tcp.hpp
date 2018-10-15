@@ -7,16 +7,13 @@ namespace uvpp
 {
     class Tcp;
 
-    typedef std::function<void(int)> StatusCallback;
-    typedef std::function<void(Tcp conn)> ConnectionCallback;
-
     struct TcpImpl
     {
         uv_tcp_t handle;
         DataReadCallback callback;
         MemPool<65536> mempool;
 
-        ConnectionCallback connection_cb;
+        ConnectionCallback<Tcp> connection_cb;
         StatusCallback connect_cb;
     };
 
@@ -58,7 +55,7 @@ namespace uvpp
             return rc;
         }
 
-        int listen(ConnectionCallback connection_cb) {
+        int listen(ConnectionCallback<Tcp> connection_cb) {
             pimpl->connection_cb = connection_cb;
             int rc = uv_listen(as_stream(), 0, [](uv_stream_t *server, int status){
                 if (status < 0) {

@@ -9,6 +9,9 @@
 namespace uvpp
 {
     typedef std::function<void(char *, int)> DataReadCallback;
+    typedef std::function<void(int)> StatusCallback;
+    template<typename T>
+    using ConnectionCallback = std::function<void(T)>;
 
     template <typename TypeImpl>
     class Stream : public BaseHandle<TypeImpl>
