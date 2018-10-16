@@ -20,13 +20,9 @@ namespace uvpp
     class Tcp : public Stream<TcpImpl>
     {
     public:
-        Tcp(uv_loop_t *uvloop, unsigned int flags=AF_INET) {
+        Tcp(uv_loop_t *uvloop, unsigned int flags=AF_UNSPEC) {
             // Loop can decay to uv_loop_t*
             uv_tcp_init_ex(uvloop, phandle(), flags);
-        }
-
-        int bind(const sockaddr_in& saddr, unsigned int flags=0) {
-            return bind((sockaddr*)&saddr, flags);
         }
 
         int bind(const sockaddr *saddr, unsigned int flags=0) {
@@ -35,18 +31,10 @@ namespace uvpp
             return rc;
         }
 
-        int getsockname(sockaddr_in& saddr) {
-            return getsockname((sockaddr*)&saddr, sizeof(saddr));
-        }
-
         int getsockname(sockaddr *saddr, int namelen) {
             int rc = uv_tcp_getsockname(phandle(), saddr, &namelen);
             assert(rc==0 || print_error(rc));
             return rc;
-        }
-
-        int getpeername(sockaddr_in& saddr) {
-            return getpeername((sockaddr*)&saddr, sizeof(saddr));
         }
 
         int getpeername(sockaddr *saddr, int namelen) {
@@ -72,10 +60,6 @@ namespace uvpp
             });
             assert(rc==0 || print_error(rc));
             return rc;
-        }
-
-        int connect(const struct sockaddr_in& saddr, StatusCallback connect_cb) {
-            return connect((const sockaddr*)&saddr, connect_cb);
         }
 
         int connect(const sockaddr *saddr, StatusCallback connect_cb) {

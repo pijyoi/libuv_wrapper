@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
 
     uv_freeaddrinfo(aireq.addrinfo);
 
-    uvpp::Tcp client(uvloop, AF_UNSPEC);
+    uvpp::Tcp client(uvloop);
 
     client.connect((sockaddr*)&saddr, [&](int status){
         if (status < 0) {
